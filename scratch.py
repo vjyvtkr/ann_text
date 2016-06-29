@@ -12,8 +12,9 @@ from sklearn.feature_extraction.text import CountVectorizer
 import fsgd
 import test_sgd
 
-def run(feat):
-    path = "/home/vjyvtkr/WF/Project/"
+def run(feat,inp_df):
+    #feat = 208    
+    path = "C:\\Users\\u505123\\Documents\\Project\\ann_text-master\\"
     sw_file = open(path+"stopwords.txt")    
     stopwords = sw_file.readlines()
     for i in range(0,len(stopwords)):
@@ -21,7 +22,6 @@ def run(feat):
     sw_file.close()
     
     def cleanPhrase(s):
-        #remove all the numbers
         s = re.sub(r"[^A-Za-z\']", " ", s)
         s = re.sub(r"\s{2,}", " ", s)
         s = re.sub(r" [A-Za-z] ", " ", s)
@@ -35,6 +35,7 @@ def run(feat):
             new_phrases.append(x)
         data["Phrase"] = new_phrases
         return data.reindex(np.random.permutation(data.index))
+    
     '''
     def getLabelledFeatures(data):
         cv = CountVectorizer(stop_words=stopwords,max_features=240)
@@ -68,11 +69,11 @@ def run(feat):
         
     
         return fin_feat,fin_feat_out
-    '''    
-    inp_doc = path+"Final_Achuth.csv"
+    '''  
     
-    inp_df = pd.read_csv(inp_doc)
-    
+    #inp_doc = path+"Final_Achuth.csv"  
+    #inp_df = pd.read_csv(inp_doc)
+    #inp_df = inp_df.reindex(np.random.permutation(inp_df.index))
     train_data = inp_df[0:int(0.7*len(inp_df.index))]
     test_data = inp_df[int(0.7*len(inp_df.index)):]
     
@@ -83,6 +84,7 @@ def run(feat):
     #random.shuffle(c)
     #features,y = zip(*c)
     #features=list(features)
+    
     y = []
     for i in final_train_data["Indicator"]:
         if i=="Yes":
@@ -90,6 +92,7 @@ def run(feat):
         else:
             y.append(0)
     y = np.array([y]).T
+    
     cv = CountVectorizer(stop_words=stopwords,max_features=feat)
     nn_inp = cv.fit_transform(final_train_data["Phrase"].values).toarray()
     ans = fsgd.two_layers(nn_inp,y,len(nn_inp[0]))
@@ -102,7 +105,7 @@ def run(feat):
     ind=0
     for i in final_test_data["Indicator"]:
         if i=="Yes":
-            if test_out[ind]>0.1:
+            if test_out[ind]>0.5:
                 final_comp[ind]=[1,1]
             else:
                 final_comp[ind]=[1,0]
