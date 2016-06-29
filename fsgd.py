@@ -34,14 +34,14 @@ def two_layers(X,y,dim):
     			[0]])
     '''
     for alpha in alphas:
-        #print "\nTraining With Alpha:" + str(alpha)
+        print "\nTraining With Alpha:" + str(alpha)
         np.random.seed(1)
     
         # randomly initialize our weights with mean 0
         synapse_0 = 2*np.random.random((dim,1)) - 1
         #synapse_1 = 2*np.random.random((no_inp,1)) - 1
         j=-1
-        while j<35000:
+        while j<20000:
             j+=1
             # Feed forward through layers 0, 1, and 2
             layer_0 = X
@@ -52,8 +52,8 @@ def two_layers(X,y,dim):
             layer_1_error = layer_1 - y
     
             err = np.mean(np.abs(layer_1_error))
-            #if not j%100:
-            #    print "Error after "+str(j)+" iterations:" + str(err)
+            if not j%100:
+                print "Error after "+str(j)+" iterations:" + str(err)
             if err < 0.1:
                 break
     
@@ -71,5 +71,5 @@ def two_layers(X,y,dim):
             #synapse_1 -= alpha * (layer_1.T.dot(layer_2_delta))
             synapse_0 -= alpha * (layer_0.T.dot(layer_1_delta))  
                    
-    #print "Total Iterations =",j
+    print "Total Iterations =",j
     return [synapse_0]
