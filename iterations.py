@@ -6,19 +6,23 @@ Created on Wed Jun 29 01:41:58 2016
 """
 
 import scratch as sc
+import pandas as pd
+import numpy as np
 
 p=0.0
 s=0.0
 a=0.0
 
-feat = 50
-
-obj = open("/home/vjyvtkr/WF/Project/log.txt","w+")
-
-for i in range(50,2000):
+feat = 30
+path = "C:\\Users\\u505123\\Documents\\Project\\ann_text-master\\"
+obj = open(path+"log_shuffle.txt","w+")
+inp_doc = path+"Final_Achuth.csv"
+inp_df = pd.read_csv(inp_doc)
+inp_df = inp_df.reindex(np.random.permutation(inp_df.index))
+for i in range(30,2000):
     print "Running iter with f = %s\n"%(str(i))
     obj.write("Running iter with f = %s\n"%(str(i)))
-    t1,t2,t3 = sc.run(i)
+    t1,t2,t3 = sc.run(i,inp_df)
     if t2>s and t3>a:
         p=t1
         s=t2
