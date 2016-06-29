@@ -156,7 +156,7 @@ for train_indices, test_indices in k_fold:
     confusion += confusion_matrix(test_y, predictions)
     score = f1_score(test_y, predictions, pos_label=1)
     scores.append(score)
-print('Total emails classified:', len(data))
+print('Total events classified:', len(data))
 print('Score:', sum(scores)/len(scores))
 print('Confusion matrix:')
 print(confusion)
