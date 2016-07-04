@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jul 01 13:15:33 2016
-
 @author: Vijay Yevatkar
 """
 from sklearn.feature_extraction.text import CountVectorizer
@@ -22,18 +21,17 @@ class ANN(object):
     def sigmoid_output_to_derivative(self,output):
         return output*(1-output)    
     
-    def trainNN(self,X,y,dim):
+    def trainNN(self,X,y,alpha=0.1, max_iter = 5000):
     
-        alpha = 0.1
-        
-        print "\nTraining With Alpha:" + str(alpha)
+        dim = len(X[0])
+        #print "\nTraining With Alpha:" + str(alpha)
         np.random.seed(1)
     
         # randomly initialize our weights with mean 0
         synapse_0 = 2*np.random.random((dim,1)) - 1
 
         j=-1
-        while j<5000:
+        while j<max_iter:
             j+=1
 
             #Feed forward through layers 1 and 2
@@ -47,8 +45,8 @@ class ANN(object):
             err = np.mean(np.abs(layer_1_error))
             
             #Check if error is minimizing after every 100 iterations            
-            if not j%100:
-                print "Error after "+str(j)+" iterations:" + str(err)
+            #if not j%100:
+            #    print "Error after "+str(j)+" iterations:" + str(err)
             
             #if error goes below 0.1, break            
             if err < 0.1:
@@ -62,7 +60,8 @@ class ANN(object):
             synapse_0 -= alpha * (layer_0.T.dot(layer_1_delta))  
                    
         print "Total Iterations =",j
-        return [synapse_0]
+        print "Error is",err
+        return synapse_0
         
     def testNN(self,X,w):
         layer_0 = X
@@ -70,18 +69,16 @@ class ANN(object):
         return layer_1
 
 class WF(object):
-        
-    sw_path = "C:\\Users\\u505123\\Documents\\Project\\ann_text-master\\stopwords.txt"            
-    feat = 208    
     
-    def __init__(self, file_path):
+    #sw_path = "C:\\Users\\u505123\\Documents\\Project\\ann_text-master\\stopwords.txt"            
+    
+    def __init__(self, file_path,sw_path = "/home/vjyvtkr/WF/Project/stopwords.txt",feat=208):
         self.file_is = file_path
         self.inp_df = pd.read_csv(file_path)
-        
-        self.train_data = self.clean(self.inp_df[0:int(0.7*len(self.inp_df.index))])
-        self.test_data = self.clean(self.inp_df[int(0.7*len(self.inp_df.index)):])
+        self.train_data = self.clean(self.inp_df[0:int(0.5*len(self.inp_df.index))])
+        self.test_data = self.clean(self.inp_df[int(0.5*len(self.inp_df.index)):])
 
-        sw_file = open(self.sw_path)    
+        sw_file = open(sw_path)    
         self.stop_words = sw_file.readlines()
         
         for i in range(0,len(self.stop_words)):
@@ -89,6 +86,8 @@ class WF(object):
 
         sw_file.close()
     
+        self.cv = CountVectorizer(stop_words=self.stop_words,max_features=feat)
+
     def cleanPhrase(self,s):
         s = re.sub(r"[^A-Za-z\']", " ", s)
         s = re.sub(r"\s{2,}", " ", s)
@@ -102,16 +101,19 @@ class WF(object):
             x = self.cleanPhrase(i)
             new_phrases.append(x)
         data["Phrase"] = new_phrases
-        return data.reindex(np.random.permutation(data.index))    
+        return data#reindex(np.random.permutation(data.index))    
     
-    def trainTestData(self,y):
-        cv = CountVectorizer(stop_words=self.stop_words,max_features=self.feat)
-        nn_inp = cv.fit_transform(self.train_data["Phrase"].values).toarray()
+    def trainData(self,y):
+        
+        nn_inp = self.cv.fit_transform(self.train_data["Phrase"].values).toarray()
         neural_net = ANN()
-        ans = neural_net.trainNN(nn_inp,y,len(nn_inp[0]))
+        ans = neural_net.trainNN(nn_inp,y)
+        return ans
     
-        test_sample = cv.fit_transform(self.test_data["Phrase"].values).toarray()
-        test_out = neural_net.testNN(test_sample,ans[0])    
+    def testData(self,w):
+        neural_net = ANN()
+        test_sample = self.cv.fit_transform(self.test_data["Phrase"].values).toarray()
+        test_out = neural_net.testNN(test_sample,w)    
         return test_out
     
     def plotCurves(self,fpr,tpr,thresholds):
@@ -127,44 +129,64 @@ class WF(object):
         plt.show()
         
         #Lift Curve
-        TP=self.ranks['tp']
-        FN=self.ranks['fn']
-        self.test_data=self.test_data.reset_index()
-        gain_model = [0]
-        model_cumul = 0.0
-        dec = len(self.test_data)/10
-        dec1 = len(self.test_data)/10
-        self.test_data = self.test_data.sample(n = len(self.test_data))
-        df1 = pd.DataFrame(columns=["Indicator","prob","true"])
-        df1["Indicator"] = self.y_test_scores
-        df1["prob"] = [i for j in self.predicted_prob.tolist() for i in j]
-        df1["true"] = self.final_scores
-        df1.sort(columns = 'prob', inplace = True, ascending = False)
-        df1 = df1.reset_index(drop = True)
-        df_GL = pd.DataFrame([],columns  = ['Decile', 'Random', 'Model'])
+        #TP=self.ranks['tp']
+        #FN=self.ranks['fn']
+        plot_test_data=self.test_data.reset_index()
+        del plot_test_data['index']
+        plot_test_data['pred_scores'] = [i for j in self.predicted_prob.tolist() for i in j]
+        plot_test_data = plot_test_data.sort(columns=["pred_scores"],ascending=False)
+        plot_test_data=plot_test_data.reset_index()
+        del plot_test_data['index']
+        decile = [i for i in range(1,11)]
+                
+        #gain_model = [0]
+        #model_cumul = 0.0
+        dec = len(plot_test_data)/10
+        vals = [dec for i in range(1,10)]
+        dec1 = len(plot_test_data)%10
+        vals.append(dec1)
+        responses = []
         
-        for i in range(10):
-            df_GL.loc[i, 'Decile'] = str(i + 1)
-            model = 0.0
-            if (i==9):
-                dec1=len(self.test_data)%10
-            for k in range(i*dec, (i*dec) + dec1):
-                    if df1['true'][k] == 1:
-                        model = model + 1
-            model_cumul = model_cumul + model
-            df_GL.loc[i, 'Model'] = str(model_cumul)
-            val = ((model_cumul)/(TP + FN))*100.00
-            if val>100.0:
-                val=100.0
-            gain_model.append(val)
+        #plot_test_data = plot_test_data.sample(n = len(self.test_data))
+        res_count=0 
+        total_yes_count = 0
+        for i in range(0,len(plot_test_data)):
+            if not i%dec and i>0:
+                responses.append(res_count)
+                res_count=0
+            if plot_test_data['pred_scores'][i]>=self.optimal_thresh:
+                res_count+=1
+                total_yes_count+=1
         
+        cumm_response = [responses[0]]
+        for i in range(1,len(responses)):
+            cumm_response.append(responses[i]+cumm_response[i-1])
+                    
+        percent = []
+        for i in responses:
+            per = (float(i)/total_yes_count)*100
+            percent.append("%.2f"%per)
         
-        percent_pop = range(0, 110, 10)
+        gains = []
+        for i in cumm_response:
+            per = (float(i)/total_yes_count)*100
+            gains.append("%.2f" % per)
+        percent_pop = range(10, 110, 10)        
+        lift = []
+        for i in range(0,10):
+            x = float(gains[i])/percent_pop[i]
+            lift.append(x)        
+
         fig3=plt.figure()
-        pl= fig3.add_subplot(111)
-        pl.plot(percent_pop, gain_model, 'b')
-        x=[0,10,20,30,40,50,70,90,100]
-        pl.plot(x,x,'r')
+        pl_gains = fig3.add_subplot(111)
+        pl_gains.plot(percent_pop, gains, 'b')
+        x=[10,20,30,40,50,60,70,90,100]
+        pl_gains.plot(x,x,'r')
+        #fig4 = plt.figure()
+        #pl_lift = fig4.add_subplot(111)
+        #pl_lift.plot(percent_pop,lift, 'y')
+        
+        
         
     
     
@@ -184,30 +206,32 @@ class WF(object):
                 self.y_test_scores.append(0)        
         
         valid_scores = np.array([self.y_train_scores]).T
-        
-        self.predicted_prob = self.trainTestData(valid_scores)
+        ans = self.trainData(valid_scores)
+        self.predicted_prob = self.testData(ans)
         fpr,tpr,thresholds = sklearn.metrics.roc_curve(self.y_test_scores,self.predicted_prob)
-        
-        for i in range(0,len(thresholds)):
-            if thresholds[i]>1.0:
-                thresholds[i]=1.0        
-        
-        idx = np.argwhere(np.isclose((1-fpr)*1000,tpr*1000, atol=10)).reshape(-1)
-        optimal_thresh = round(thresholds[idx[idx.__len__()/2]],3)
+        thresholds[0]=1.0
+        max_sum = 0
+        self.optimal_thresh = 0.5
+        for i in range(0,len(tpr)):
+            temp = tpr[i]+(1.0-fpr[i])
+            if temp>max_sum:
+                max_sum = temp
+                self.optimal_thresh = thresholds[i]
+
 
         self.ranks = {'tp':0,'fp':0,'fn':0,'tn':0}
         ind=0
         self.final_scores = []
         for i in self.y_test_scores:
             if i==1:
-                if self.predicted_prob[ind]>optimal_thresh:
+                if self.predicted_prob[ind]>self.optimal_thresh:
                     self.ranks['tp'] = self.ranks['tp']+1
                     self.final_scores.append(1)
                 else:
                     self.ranks['fn'] = self.ranks['fn']+1
                     self.final_scores.append(0)
             else:
-                if self.predicted_prob[ind]>optimal_thresh:
+                if self.predicted_prob[ind]>self.optimal_thresh:
                     self.ranks['fp'] = self.ranks['fp']+1
                     self.final_scores.append(1)
                 else:
@@ -222,4 +246,3 @@ class WF(object):
         self.plotCurves(fpr,tpr,thresholds)        
         
         return [precision, sensitivity, accuracy]
-        
